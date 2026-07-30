@@ -19,18 +19,24 @@ export interface DeepgramTranscriptionResult {
 }
 
 export class DeepgramService {
-  private apiKey: string
+  private customApiKey?: string
   private baseUrl = "https://api.deepgram.com/v1"
 
   constructor(apiKey?: string) {
-    this.apiKey = apiKey || process.env.DEEPGRAM_API_KEY!
-    if (!this.apiKey) {
-      throw new Error("Deepgram API key is required")
+    this.customApiKey = apiKey
+  }
+
+  private getApiKey(): string {
+    const key = this.customApiKey || process.env.DEEPGRAM_API_KEY
+    if (!key) {
+      throw new Error("Missing DEEPGRAM_API_KEY environment variable.")
     }
+    return key
   }
 
   async transcribeAudio(options: DeepgramTranscriptionOptions): Promise<DeepgramTranscriptionResult> {
     try {
+      const apiKey = this.getApiKey()
       const formData = new FormData()
       formData.append("audio", new Blob([options.audio]))
 
@@ -45,7 +51,7 @@ export class DeepgramService {
       const response = await fetch(`${this.baseUrl}/listen?${params}`, {
         method: "POST",
         headers: {
-          Authorization: `Token ${this.apiKey}`,
+          Authorization: `Token ${apiKey}`,
         },
         body: formData,
       })
@@ -69,7 +75,7 @@ export class DeepgramService {
       }
     } catch (error) {
       console.error("Deepgram Transcription Error:", error)
-      throw new Error("Failed to transcribe audio")
+      throw error instanceof Error ? error : new Error("Failed to transcribe audio")
     }
   }
 }

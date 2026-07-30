@@ -2,18 +2,20 @@ import { createClient } from "@/lib/supabase/server"
 import { ElevenLabsService } from "@/lib/ai/elevenlabs"
 import { type NextRequest, NextResponse } from "next/server"
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError || !user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
   try {
+    const supabase = await createClient()
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     const body = await request.json()
     const { text, voice_id } = body
 
@@ -35,6 +37,9 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error("TTS API Error:", error)
-    return NextResponse.json({ error: "Failed to generate speech" }, { status: 500 })
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to generate speech" },
+      { status: 500 }
+    )
   }
 }

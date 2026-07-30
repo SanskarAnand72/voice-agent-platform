@@ -2,30 +2,40 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireApiKey } from '@/lib/api-auth'
 import { createClient } from '@/lib/supabase/server'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /v1/agents
  * List agents for the authenticated user.
  */
 export async function GET(req: NextRequest) {
-  const auth = await requireApiKey(req)
-  if (auth instanceof NextResponse) return auth
+  try {
+    const auth = await requireApiKey(req)
+    if (auth instanceof NextResponse) return auth
 
-  const supabase = await createClient()
-  const { searchParams } = new URL(req.url)
-  const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100)
+    const supabase = await createClient()
+    const { searchParams } = new URL(req.url)
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100)
 
-  const { data: agents, error } = await supabase
-    .from('agents')
-    .select('id, assistant_id, name, description, model, voice_id, phone_number, status, created_at')
-    .eq('user_id', auth.user.userId)
-    .order('created_at', { ascending: false })
-    .limit(limit)
+    const { data: agents, error } = await supabase
+      .from('agents')
+      .select('id, assistant_id, name, description, model, voice_id, phone_number, status, created_at')
+      .eq('user_id', auth.user.userId)
+      .order('created_at', { ascending: false })
+      .limit(limit)
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ data: agents })
+  } catch (error) {
+    console.error('GET /v1/agents error:', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { status: 500 }
+    )
   }
-
-  return NextResponse.json({ data: agents })
 }
 
 /**
@@ -86,27 +96,35 @@ export async function POST(req: NextRequest) {
  * Delete an agent by assistant_id.
  */
 export async function DELETE(req: NextRequest) {
-  const auth = await requireApiKey(req)
-  if (auth instanceof NextResponse) return auth
+  try {
+    const auth = await requireApiKey(req)
+    if (auth instanceof NextResponse) return auth
 
-  const { searchParams } = new URL(req.url)
-  const assistantId = searchParams.get('assistant_id')
+    const { searchParams } = new URL(req.url)
+    const assistantId = searchParams.get('assistant_id')
 
-  if (!assistantId) {
-    return NextResponse.json({ error: 'assistant_id query param required' }, { status: 400 })
+    if (!assistantId) {
+      return NextResponse.json({ error: 'assistant_id query param required' }, { status: 400 })
+    }
+
+    const supabase = await createClient()
+
+    const { error } = await supabase
+      .from('agents')
+      .delete()
+      .eq('assistant_id', assistantId)
+      .eq('user_id', auth.user.userId)
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('DELETE /v1/agents error:', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { status: 500 }
+    )
   }
-
-  const supabase = await createClient()
-
-  const { error } = await supabase
-    .from('agents')
-    .delete()
-    .eq('assistant_id', assistantId)
-    .eq('user_id', auth.user.userId)
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-
-  return NextResponse.json({ success: true })
 }

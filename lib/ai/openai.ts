@@ -1,8 +1,12 @@
 import OpenAI from 'openai'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+function getOpenAIClient(): OpenAI {
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) {
+    throw new Error('Missing OPENAI_API_KEY environment variable.')
+  }
+  return new OpenAI({ apiKey })
+}
 
 export interface Message {
   role: 'system' | 'user' | 'assistant'
@@ -30,6 +34,8 @@ export async function generateAIResponse(
   conversationHistory: Message[] = [],
 ): Promise<AIResponse> {
   try {
+    const openai = getOpenAIClient()
+
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
       { role: 'system', content: systemPrompt },
       ...conversationHistory.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),

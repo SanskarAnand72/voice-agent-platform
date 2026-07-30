@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import twilio from 'twilio'
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -22,13 +24,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Initiate Twilio call
+    const accountSid = process.env.TWILIO_ACCOUNT_SID
+    const authToken = process.env.TWILIO_AUTH_TOKEN
+    if (!accountSid || !authToken) {
+      return NextResponse.json(
+        { error: 'Missing TWILIO_ACCOUNT_SID or TWILIO_AUTH_TOKEN environment variable.' },
+        { status: 500 }
+      )
+    }
+
     console.log('=== Making Twilio Call ===')
-    console.log('TWILIO_ACCOUNT_SID:', process.env.TWILIO_ACCOUNT_SID ? `${process.env.TWILIO_ACCOUNT_SID.substring(0, 10)}...` : 'NOT SET')
-    console.log('TWILIO_AUTH_TOKEN:', process.env.TWILIO_AUTH_TOKEN ? `${process.env.TWILIO_AUTH_TOKEN.substring(0, 10)}...` : 'NOT SET')
+    console.log('TWILIO_ACCOUNT_SID:', `${accountSid.substring(0, 10)}...`)
     console.log('TWILIO_PHONE_NUMBER:', process.env.TWILIO_PHONE_NUMBER || 'NOT SET')
     console.log('=========================\n')
     
-    const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+    const client = twilio(accountSid, authToken)
     const call = await client.calls.create({
       url: agent.webhook_url || 'https://a0edb58d10fc.ngrok-free.app/api/twilio/incoming-call',
       to: phone,

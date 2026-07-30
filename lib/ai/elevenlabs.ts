@@ -17,21 +17,27 @@ export interface TextToSpeechOptions {
 }
 
 export class ElevenLabsService {
-  private apiKey: string
+  private customApiKey?: string
   private baseUrl = "https://api.elevenlabs.io/v1"
 
   constructor(apiKey?: string) {
-    this.apiKey = apiKey || process.env.ELEVENLABS_API_KEY!
-    if (!this.apiKey) {
-      throw new Error("ElevenLabs API key is required")
+    this.customApiKey = apiKey
+  }
+
+  private getApiKey(): string {
+    const key = this.customApiKey || process.env.ELEVENLABS_API_KEY
+    if (!key) {
+      throw new Error("Missing ELEVENLABS_API_KEY environment variable.")
     }
+    return key
   }
 
   async getVoices(): Promise<ElevenLabsVoice[]> {
     try {
+      const apiKey = this.getApiKey()
       const response = await fetch(`${this.baseUrl}/voices`, {
         headers: {
-          "xi-api-key": this.apiKey,
+          "xi-api-key": apiKey,
         },
       })
 
@@ -43,18 +49,19 @@ export class ElevenLabsService {
       return data.voices
     } catch (error) {
       console.error("ElevenLabs Get Voices Error:", error)
-      throw new Error("Failed to fetch voices")
+      throw error instanceof Error ? error : new Error("Failed to fetch voices")
     }
   }
 
   async textToSpeech(options: TextToSpeechOptions): Promise<ArrayBuffer> {
     try {
+      const apiKey = this.getApiKey()
       const response = await fetch(`${this.baseUrl}/text-to-speech/${options.voice_id}`, {
         method: "POST",
         headers: {
           Accept: "audio/mpeg",
           "Content-Type": "application/json",
-          "xi-api-key": this.apiKey,
+          "xi-api-key": apiKey,
         },
         body: JSON.stringify({
           text: options.text,
@@ -73,7 +80,7 @@ export class ElevenLabsService {
       return await response.arrayBuffer()
     } catch (error) {
       console.error("ElevenLabs TTS Error:", error)
-      throw new Error("Failed to generate speech")
+      throw error instanceof Error ? error : new Error("Failed to generate speech")
     }
   }
 }

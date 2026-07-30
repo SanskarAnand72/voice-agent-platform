@@ -1,9 +1,13 @@
 import { createGroq } from "@ai-sdk/groq"
 import { generateText, streamText } from "ai"
 
-const groq = createGroq({
-  apiKey: process.env.GROQ_API_KEY!,
-})
+function getGroqClient() {
+  const apiKey = process.env.GROQ_API_KEY
+  if (!apiKey) {
+    throw new Error("Missing GROQ_API_KEY environment variable.")
+  }
+  return createGroq({ apiKey })
+}
 
 export interface AIResponse {
   text: string
@@ -22,6 +26,7 @@ export async function generateAIResponse(
   maxTokens = 1000,
 ): Promise<AIResponse> {
   try {
+    const groq = getGroqClient()
     const result = await generateText({
       model: groq(model),
       system: systemPrompt,
@@ -42,7 +47,7 @@ export async function generateAIResponse(
     }
   } catch (error) {
     console.error("Groq AI Error:", error)
-    throw new Error("Failed to generate AI response")
+    throw error instanceof Error ? error : new Error("Failed to generate AI response")
   }
 }
 
@@ -54,6 +59,7 @@ export async function streamAIResponse(
   maxTokens = 1000,
 ) {
   try {
+    const groq = getGroqClient()
     const result = streamText({
       model: groq(model),
       system: systemPrompt,

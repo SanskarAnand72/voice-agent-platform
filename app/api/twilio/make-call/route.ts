@@ -3,21 +3,31 @@ import { createClient } from '@/lib/supabase/server'
 import { dispatchWebhook } from '@/lib/webhooks'
 import twilio from 'twilio'
 
-const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+export const dynamic = 'force-dynamic'
 
 /**
  * POST /api/twilio/make-call
  * Authenticated dashboard endpoint to make outbound calls.
  */
 export async function POST(req: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
   try {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const accountSid = process.env.TWILIO_ACCOUNT_SID
+    const authToken = process.env.TWILIO_AUTH_TOKEN
+    if (!accountSid || !authToken) {
+      return NextResponse.json(
+        { error: 'Missing TWILIO_ACCOUNT_SID or TWILIO_AUTH_TOKEN environment variable.' },
+        { status: 500 }
+      )
+    }
+
+    const client = twilio(accountSid, authToken)
     const body = await req.json()
     const toNumber = body.to || body.to_phone
     const agentId = body.agent_id

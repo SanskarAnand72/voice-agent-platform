@@ -3,10 +3,7 @@ import { requireApiKey } from '@/lib/api-auth'
 import { createClient } from '@/lib/supabase/server'
 import twilio from 'twilio'
 
-const client = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-)
+export const dynamic = 'force-dynamic'
 
 /**
  * POST /v1/calls
@@ -21,6 +18,16 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth
 
   try {
+    const accountSid = process.env.TWILIO_ACCOUNT_SID
+    const authToken = process.env.TWILIO_AUTH_TOKEN
+    if (!accountSid || !authToken) {
+      return NextResponse.json(
+        { error: 'Missing TWILIO_ACCOUNT_SID or TWILIO_AUTH_TOKEN environment variable.' },
+        { status: 500 }
+      )
+    }
+
+    const client = twilio(accountSid, authToken)
     const body = await req.json()
     const { assistant_id, to_phone, to } = body
 
@@ -118,27 +125,35 @@ export async function POST(req: NextRequest) {
  * List calls for the authenticated user.
  */
 export async function GET(req: NextRequest) {
-  const auth = await requireApiKey(req)
-  if (auth instanceof NextResponse) return auth
+  try {
+    const auth = await requireApiKey(req)
+    if (auth instanceof NextResponse) return auth
 
-  const supabase = await createClient()
-  const { searchParams } = new URL(req.url)
-  const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100)
-  const offset = parseInt(searchParams.get('offset') || '0')
+    const supabase = await createClient()
+    const { searchParams } = new URL(req.url)
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100)
+    const offset = parseInt(searchParams.get('offset') || '0')
 
-  const { data: calls, error } = await supabase
-    .from('calls')
-    .select('*')
-    .eq('user_id', auth.user.userId)
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1)
+    const { data: calls, error } = await supabase
+      .from('calls')
+      .select('*')
+      .eq('user_id', auth.user.userId)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({
+      data: calls,
+      pagination: { limit, offset, total: calls?.length ?? 0 },
+    })
+  } catch (error) {
+    console.error('GET /v1/calls error:', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { status: 500 }
+    )
   }
-
-  return NextResponse.json({
-    data: calls,
-    pagination: { limit, offset, total: calls?.length ?? 0 },
-  })
 }
