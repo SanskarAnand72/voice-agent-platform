@@ -3,6 +3,8 @@ import { LiveTranscript } from "@/components/realtime/live-transcript"
 import { CallStatusMonitor } from "@/components/realtime/call-status-monitor"
 import { LiveMetrics } from "@/components/realtime/live-metrics"
 
+export const dynamic = 'force-dynamic'
+
 export default async function MonitoringPage() {
   const supabase = await createClient()
 

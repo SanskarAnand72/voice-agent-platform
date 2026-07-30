@@ -1,7 +1,9 @@
 import React from "react"
-import dynamic from "next/dynamic"
+import dynamicImport from "next/dynamic"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
+
+export const dynamic = 'force-dynamic'
 import { StatsCards } from "@/components/dashboard/stats-cards"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -14,7 +16,7 @@ import {
 } from "lucide-react"
 
 // Dynamically import CallHistoryChart to prevent route blocking
-const CallHistoryChart = dynamic(
+const CallHistoryChart = dynamicImport(
   () => import("@/components/dashboard/call-history-chart").then(mod => mod.CallHistoryChart),
   {
     loading: () => <div className="skeleton h-[320px] w-full" />,
